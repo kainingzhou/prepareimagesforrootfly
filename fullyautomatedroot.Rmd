@@ -1,0 +1,144 @@
+---
+title: "Fully automated: from root imaging to image analysis"
+author: "Kaining Zhou"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+setwd("C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly")
+```
+
+#### **1. Automated Minirhizotron for root imaging:**
+
+A minirhizotron (MR) is an *in situ* root imaging system that captures root dynamics over time. Commercial MRs usually are  expensive and need manual operation which is time-consuming. This results in limited observation interval and sampling amount in root studies using MR technology. The next challenge for *in situ* root imaging is to develop  low cost and automated MR systems. We designed and developed a root imaging system which is able to overcome the limitations mentioned above. The imaging system is with fully automated operations for long-term in-situ monitoring using wireless control. Images acquired by this system has high resolution of  $2592\times 1944$  pixels. The system is tested in the field by imaging bell pepper roots showing advantageous performance over commercial systems.
+
+```{r, echo=F, fig.align='center', fig.cap="Automated Minirhizotron system"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/Automated_minirhizotron.png'))
+```
+
+#### **2. Automated root image analysis**
+
+Though taking root images become much easier, image analysis is tedious and time-consuming.Therefore, image analysis is the bottleneck for image-based root phenotyping. There are many open-source or commercial software which can automatically analyze root images but they mainly worked on roots grown in hydroponic system or transparent soil. The lack of automated, high throughput root analysis hampers our scientific understanding and prevents application of MR in agricultural and environmental settings. There is a urgent demand to integrate innovative approaches such as machine learning into root phenotyping pipelines. In other words, we need to train computers to process and analyze root images for us.   
+
+Now we developed a imaging pipeline which is able to automatically identify roots and measure root length using Convolutional Neural Networks (CNN). 
+
+```{r, echo=F, fig.align='center', fig.cap="Pipeline of automated root image analysis"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/CNN pipeline.png'))
+```
+
+The model have been tested on thousands of root images taken from various crops(e.g. orange trees, melon, tomato, bell pepper) grown under stressed conditions(e.g. salinity, low temperature, root restriction). This model perform well on estimating root length compared with manual annotation. The code is written in python which is saved in Google drive (private access). 
+
+To run the model, every time just need to change the input path of target image folder and output path then click Run. It only takes few seconds to complete analyzing each image which is way faster than manual annotation (usually 1-2 minutes for each image).
+
+```{r, echo=F, fig.align='center', fig.cap="Interface of the opration system"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/python.png'))
+```
+
+#### **3. Manual root annotation**
+##### **3.1 Rootfly: Software for Minirhizotron Image Analysis**
+**Rootfly** is a free, open-source software specially designed for MR image analysis. It can be used to measure the length, diameter, color, as well as the lifespan of each individual root. This software is very handy with easy to use interface, and with all the data for an experiment stored in a single RFY file. 
+  <p>&nbsp;</p> 
+Bartz Technology Corporation (Bartz) produces most commonly used MR systems, and Rootfly is widely used to analyze images taken from Bartz MR. 
+
+```{r, echo=F, fig.align='center', fig.cap="Interface of the opration system"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/Rootfly1.png'))
+```
+
+##### **3.2  Image requirements in Rootfly**  
+  * Image file format  
+  Rootfly accepts images in either jpg or bmp formats.    
+  <p>&nbsp;</p>  
+  Rootfly expects root images adhere to common filename conventions. While the experiment, tube, window, and session of each root must be specified in the filename, while other parameters such as time and initials are optional. For example, the Bartz ICAP uses the filename format *experiment*_*T[tube #]*_*L[window #]*_*[session date]*_*[time]*_*[session #]*_*[initials]*.jpg.  In Rootfly, this image file format would be equivalent to: [expt]_T[tube]_L[win]_[yyyy.mm.dd]_[time]_[sess]_user].jpg.  In practice, a image file of this format may appear as: EXPERIMENT_T001_L000_2007.05.09_070000_001_CBD.jpg.   
+  <p>&nbsp;</p>  
+  When the project image directory is specified, any minirhizotron image not in this format will be ignored.  To learn more about making root images ready for a Rootfly project, review preparing images. 
+
+
+  * Image size  
+  There is no restriction on the size of the root images used. However, images with large size are heavy for Rootfly and may cause trouble to run it.
+
+##### **3.3  Prepare images for Rootfly**  
+Followed are R codes to prepare images. Let's break them into three parts；
+
+  * Rename image file  
+  The name of images taken from automated MR do not meet the requirement of Rootfly because (1) image orders are reversed (e.g. image taken near soil surface has greater number) (2) root images do not adhere to common filename conventions. 
+  
+```text 
+# 1. Set working directory
+setwd("C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/rootimage_changed")
+
+# 2. Load packages
+library("dplyr") # Used for piping
+library("magick") # Used for stitching images
+
+# 3. Rename: 
+# (1) Reverse image number in order to stitch in correct order later
+# (2) Add other parameters to meet name requirement of Rootfly
+file.rename(list.files(pattern = ".jpg"), paste0("Pepperauto_T003_L",sprintf("%03d",length(list.files(pattern = ".jpg")):1), "_2021.10.15_001.jpg"))
+
+```
+  
+  * Resize image file  
+  Images taken by automated MR is as large as $2592\times 1944$ pixels. We need to make them the same dimension as Bartz MR image (640 * 480 pixels).
+  
+```text
+#... Continued 
+
+# 4. Resize: make the dimension same as Bartz MR (640*480 pixels)
+listoffiles <- list.files(path = "C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/rootimage_changed",
+                          full.names = TRUE) # Each time change the path of image folder 
+
+for(i in seq_along(listoffiles)) {
+  
+  imfile <- image_read(listoffiles[i])
+  
+  resized <- image_scale(imfile, "640")
+  
+  image_write(resized, paste(listoffiles[i]))
+  
+}
+
+```  
+When import images to Rootfly, remember to remove the parameters of time and initials in the window below.
+
+```{r, echo=F, fig.align='center', fig.cap="Select image file format"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/Rootfly.png'))
+```
+
+  * Stitch images  
+  Sometime it is nice to show the soil profile of each tube so audience can visually see contrast rooting pattern under different conditions. Note that if put this chunk of code before resize, we could get stitched images with original resolution (able to stitch up to 32 original images with each image in 3MB).
+
+```text
+#... Continued 
+
+# 5. Stitch images
+pics <- dir("C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/rootimage_changed", full.names = TRUE)
+length_size <- length(pics)
+pics[1:length_size] %>%
+  image_read() %>%
+  image_append(stack = TRUE) %>%
+  image_write("stitched_image.jpg")
+
+```  
+
+```{r, echo=F, fig.align='center',out.height="30%",  fig.cap="Stitched root images"}
+knitr::include_graphics(c('C:/Users/Kaining/BGU ZKN/R/MR data analysis with R/prepareimagesforrootfly/images/stitched_image.jpg'))
+```  
+
+#### **4. References**  
+##### 4.1 Change multiple file names in PowerShell: https://stackoverflow.com/questions/46249126/adding-leading-zeros-to-file-name-strings-using-powershell 
+##### 4.2 Change 1 to 01 in filename with R: https://stat.ethz.ch/pipermail/r-help/2017-September/449335.html
+##### 4.3 Change 1 to 01 in filename with PowerShell: 
+```text
+gci | ren -n {[regex]::replace($_.name, '\d+', {"$args".PadLeft(2, '0')})}
+```
+##### 4.4 Stitch images: https://livefreeordichotomize.com/2017/07/18/the-making-of-we-r-ladies/
+##### 4.5 Rootfly online manual: https://cecas.clemson.edu/~stb/rootfly/Rootfly_help.html
+
